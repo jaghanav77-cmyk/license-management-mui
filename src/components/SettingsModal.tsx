@@ -4,23 +4,20 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import CloseIcon from '@mui/icons-material/Close';
 import Switch from '@mui/material/Switch';
-import { useLicense } from '../../context/LicenseContext';
 
-interface SettingsDialogProps {
+// ==============================================================================
+// SettingsModal Component
+// Platform preferences and restore sample fleet data
+// ==============================================================================
+interface SettingsModalProps {
   open: boolean;
   onClose: () => void;
+  onResetData: () => void;
 }
 
-export const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
-  const { resetFleetToDefault, showToast } = useLicense();
+export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, onResetData }) => {
   const [autoRenew, setAutoRenew] = useState(true);
   const [overProvision, setOverProvision] = useState(false);
-
-  const handleReset = () => {
-    resetFleetToDefault();
-    onClose();
-    showToast('Restored default license fleet data.', 'success');
-  };
 
   return (
     <Dialog
@@ -28,9 +25,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose })
       onClose={onClose}
       maxWidth="xs"
       fullWidth
-      PaperProps={{
-        sx: { borderRadius: '20px', p: 1 }
-      }}
+      PaperProps={{ sx: { borderRadius: '18px', p: 1 } }}
     >
       <div className="flex items-center justify-between p-4 border-b border-slate-100">
         <DialogTitle sx={{ p: 0, fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
@@ -47,36 +42,31 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose })
         <div className="flex items-center justify-between">
           <div>
             <p className="font-semibold text-slate-800 text-sm">Auto-Renewal Alerts</p>
-            <p className="text-xs text-slate-400">Trigger warnings 30 days prior to expiry</p>
+            <p className="text-xs text-slate-400">Warn 30 days prior to expiry</p>
           </div>
-          <Switch 
-            checked={autoRenew} 
-            onChange={(e) => setAutoRenew(e.target.checked)} 
-            color="primary"
-          />
+          <Switch checked={autoRenew} onChange={(e) => setAutoRenew(e.target.checked)} color="primary" />
         </div>
 
         {/* Toggle 2 */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-semibold text-slate-800 text-sm">Tenant Over-provisioning</p>
-            <p className="text-xs text-slate-400">Permit seat usage to exceed 100% quota</p>
+            <p className="font-semibold text-slate-800 text-sm">Over-provisioning</p>
+            <p className="text-xs text-slate-400">Allow seats to exceed 100% quota</p>
           </div>
-          <Switch 
-            checked={overProvision} 
-            onChange={(e) => setOverProvision(e.target.checked)} 
-            color="primary"
-          />
+          <Switch checked={overProvision} onChange={(e) => setOverProvision(e.target.checked)} color="primary" />
         </div>
 
-        {/* Fleet Reset Action */}
+        {/* Restore Sample Data */}
         <div className="pt-3 border-t border-slate-100">
           <button
             type="button"
-            onClick={handleReset}
+            onClick={() => {
+              onResetData();
+              onClose();
+            }}
             className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition cursor-pointer"
           >
-            Restore Sample Fleet Data
+            Restore Default Sample Data
           </button>
         </div>
 

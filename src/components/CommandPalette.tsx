@@ -5,55 +5,43 @@ import NoteAddOutlinedIcon from '@mui/icons-material/NoteAddOutlined';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
-import { useLicense } from '../../context/LicenseContext';
-import { StatusBadge } from '../common/StatusBadge';
-import { exportLicensesToCsv } from '../../utils/exportCsv';
+import { License } from '../types';
 
+// ==============================================================================
+// CommandPalette Component
+// Opened by typing Ctrl+K or clicking the search box in the header
+// ==============================================================================
 interface CommandPaletteProps {
   open: boolean;
   onClose: () => void;
+  licenses: License[];
+  onSelectLicense: (lic: License) => void;
   onOpenCreate: () => void;
-  onSelectLicense: (id: string) => void;
+  onExportCsv: () => void;
+  onFilterStatus: (status: string) => void;
+  onResetFilters: () => void;
 }
 
 export const CommandPalette: React.FC<CommandPaletteProps> = ({
   open,
   onClose,
+  licenses,
+  onSelectLicense,
   onOpenCreate,
-  onSelectLicense
+  onExportCsv,
+  onFilterStatus,
+  onResetFilters
 }) => {
-  const { licenses, filteredLicenses, setFilter, resetFilters, showToast } = useLicense();
   const [query, setQuery] = useState('');
 
   useEffect(() => {
-    if (open) {
-      setQuery('');
-    }
+    if (open) setQuery('');
   }, [open]);
 
   const q = query.trim().toLowerCase();
-
-  const matchingLicenses = licenses.filter(lic =>
-    !q || lic.key.toLowerCase().includes(q) || lic.organization.toLowerCase().includes(q) || lic.plan.toLowerCase().includes(q)
+  const matching = licenses.filter(l =>
+    !q || l.key.toLowerCase().includes(q) || l.organization.toLowerCase().includes(q) || l.plan.toLowerCase().includes(q)
   ).slice(0, 5);
-
-  const handleExport = () => {
-    onClose();
-    const ok = exportLicensesToCsv(filteredLicenses);
-    if (ok) showToast(`Exported ${filteredLicenses.length} licenses to CSV.`, 'success');
-  };
-
-  const handleFilter = (status: string) => {
-    onClose();
-    setFilter('status', status);
-    showToast(`Filtered by ${status}`, 'info');
-  };
-
-  const handleReset = () => {
-    onClose();
-    resetFilters();
-    showToast('Filters reset', 'info');
-  };
 
   return (
     <Dialog
@@ -62,15 +50,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       maxWidth="sm"
       fullWidth
       PaperProps={{
-        sx: { 
-          borderRadius: '18px', 
-          overflow: 'hidden',
-          mt: -10,
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
-        }
+        sx: { borderRadius: '18px', overflow: 'hidden', mt: -10, boxShadow: '0 25px 50px rgba(0,0,0,0.25)' }
       }}
     >
-      {/* Search Input Bar */}
+      {/* Search Input */}
       <div className="relative flex items-center px-4 border-b border-slate-100">
         <SearchIcon sx={{ fontSize: 20, color: '#94a3b8', mr: 1.5 }} />
         <input
@@ -78,7 +61,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Type a command or search anything..."
+          placeholder="Type a command or search licenses..."
           className="h-14 w-full border-0 bg-transparent text-sm text-slate-800 placeholder-slate-400 focus:outline-none"
         />
         <kbd className="text-[10px] font-mono text-slate-400 border border-slate-200 rounded px-1.5 py-0.5">
@@ -87,22 +70,21 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       </div>
 
       <div className="max-h-80 overflow-y-auto p-2 text-sm text-slate-700 space-y-1">
-        
-        {/* Matching Licenses */}
+        {/* Results */}
         {query && (
           <div>
             <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               Matching Licenses
             </div>
-            {matchingLicenses.length === 0 ? (
+            {matching.length === 0 ? (
               <div className="px-3 py-2 text-xs text-slate-400">No matching licenses found</div>
             ) : (
-              matchingLicenses.map(lic => (
+              matching.map(lic => (
                 <div
                   key={lic.id}
                   onClick={() => {
                     onClose();
-                    onSelectLicense(lic.id);
+                    onSelectLicense(lic);
                   }}
                   className="px-3 py-2 rounded-lg hover:bg-slate-100 flex items-center justify-between cursor-pointer transition"
                 >
@@ -110,7 +92,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                     <span className="font-mono text-xs font-bold text-slate-800">{lic.key}</span>
                     <span className="text-xs text-slate-500">• {lic.organization} ({lic.plan})</span>
                   </div>
-                  <StatusBadge status={lic.status} />
+                  <span className="text-xs text-slate-400">{lic.status}</span>
                 </div>
               ))
             )}
@@ -127,52 +109,41 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             onClick={() => { onClose(); onOpenCreate(); }}
             className="px-3 py-2 rounded-lg hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2 text-xs font-medium cursor-pointer text-slate-700 transition"
           >
-            <div className="w-5 h-5 rounded bg-slate-100 flex items-center justify-center text-slate-600">
-              <NoteAddOutlinedIcon sx={{ fontSize: 13 }} />
-            </div>
-            <span>Provision New License</span>
+            <NoteAddOutlinedIcon sx={{ fontSize: 16 }} />
+            <span>Create New License</span>
           </div>
 
           <div
-            onClick={handleExport}
+            onClick={() => { onClose(); onExportCsv(); }}
             className="px-3 py-2 rounded-lg hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2 text-xs font-medium cursor-pointer text-slate-700 transition"
           >
-            <div className="w-5 h-5 rounded bg-slate-100 flex items-center justify-center text-slate-600">
-              <DownloadOutlinedIcon sx={{ fontSize: 13 }} />
-            </div>
-            <span>Export License Fleet (CSV)</span>
+            <DownloadOutlinedIcon sx={{ fontSize: 16 }} />
+            <span>Export Report (CSV)</span>
           </div>
 
           <div
-            onClick={() => handleFilter('Active')}
+            onClick={() => { onClose(); onFilterStatus('Active'); }}
             className="px-3 py-2 rounded-lg hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2 text-xs font-medium cursor-pointer text-slate-700 transition"
           >
-            <div className="w-5 h-5 rounded bg-slate-100 flex items-center justify-center text-slate-600">
-              <FilterAltOutlinedIcon sx={{ fontSize: 13 }} />
-            </div>
-            <span>Filter by Active Licenses</span>
+            <FilterAltOutlinedIcon sx={{ fontSize: 16 }} />
+            <span>Show Active Licenses Only</span>
           </div>
 
           <div
-            onClick={() => handleFilter('Expiring')}
+            onClick={() => { onClose(); onFilterStatus('Expiring'); }}
             className="px-3 py-2 rounded-lg hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2 text-xs font-medium cursor-pointer text-slate-700 transition"
           >
-            <div className="w-5 h-5 rounded bg-slate-100 flex items-center justify-center text-slate-600">
-              <FilterAltOutlinedIcon sx={{ fontSize: 13 }} />
-            </div>
-            <span>Filter by Expiring Licenses</span>
+            <FilterAltOutlinedIcon sx={{ fontSize: 16 }} />
+            <span>Show Expiring Licenses Only</span>
           </div>
 
           <div
-            onClick={handleReset}
+            onClick={() => { onClose(); onResetFilters(); }}
             className="px-3 py-2 rounded-lg hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2 text-xs font-medium cursor-pointer text-slate-700 transition"
           >
-            <div className="w-5 h-5 rounded bg-slate-100 flex items-center justify-center text-slate-600">
-              <AutorenewIcon sx={{ fontSize: 13 }} />
-            </div>
-            <span>Reset All Table Filters</span>
+            <AutorenewIcon sx={{ fontSize: 16 }} />
+            <span>Reset All Filters</span>
           </div>
-
         </div>
 
       </div>

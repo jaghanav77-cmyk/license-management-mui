@@ -8,73 +8,80 @@ import CloseIcon from '@mui/icons-material/Close';
 import NoteAddOutlinedIcon from '@mui/icons-material/NoteAddOutlined';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import { useLicense } from '../../context/LicenseContext';
-import { LicensePlan, LicenseStatus } from '../../types/license';
+import { License, LicensePlan, LicenseStatus } from '../types';
 
-interface CreateLicenseDialogProps {
+// ==============================================================================
+// CreateLicenseModal Component
+// Dialog modal to provision a new license.
+// Auto-generates unique keys and validates the form inputs!
+// ==============================================================================
+interface CreateLicenseModalProps {
   open: boolean;
   onClose: () => void;
+  onCreate: (newLicense: License) => void;
+  onShowToast: (msg: string) => void;
 }
 
-export const CreateLicenseDialog: React.FC<CreateLicenseDialogProps> = ({ open, onClose }) => {
-  const { addLicense, generateKey, showToast } = useLicense();
-
+export const CreateLicenseModal: React.FC<CreateLicenseModalProps> = ({
+  open,
+  onClose,
+  onCreate,
+  onShowToast
+}) => {
   const [org, setOrg] = useState('');
   const [plan, setPlan] = useState<LicensePlan>('Standard');
-  const [seats, setSeats] = useState<number>(50);
-  const [expiry, setExpiry] = useState<string>('');
+  const [seats, setSeats] = useState(50);
+  const [expiry, setExpiry] = useState('');
   const [status, setStatus] = useState<LicenseStatus>('Active');
   const [adminEmail, setAdminEmail] = useState('');
   const [candidateKey, setCandidateKey] = useState('');
 
+  // Key generator helper
+  const makeRandomKey = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const segment = (len: number) => Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    return `LIC-${Math.floor(1000 + Math.random() * 9000)}-${segment(4)}`;
+  };
+
   useEffect(() => {
     if (open) {
-      setCandidateKey(generateKey());
-      const d = new Date();
-      d.setFullYear(d.getFullYear() + 1);
-      setExpiry(d.toISOString().split('T')[0]);
+      setCandidateKey(makeRandomKey());
+      const nextYear = new Date();
+      nextYear.setFullYear(nextYear.getFullYear() + 1);
+      setExpiry(nextYear.toISOString().split('T')[0]);
       setOrg('');
       setPlan('Standard');
       setSeats(50);
       setStatus('Active');
       setAdminEmail('');
     }
-  }, [open, generateKey]);
-
-  const handleRegenerateKey = () => {
-    const k = generateKey();
-    setCandidateKey(k);
-    showToast('New license key generated', 'info');
-  };
-
-  const handleCopyKey = () => {
-    navigator.clipboard.writeText(candidateKey).then(() => {
-      showToast('Key copied to clipboard!', 'success');
-    });
-  };
+  }, [open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!org.trim()) {
-      showToast('Organization name is required', 'warning');
+      onShowToast('Please enter an organization name');
       return;
     }
 
     const dateObj = new Date(expiry);
     const formattedExpiry = dateObj.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
 
-    const created = addLicense({
+    const newLicense: License = {
+      id: `lic-${Date.now()}`,
       key: candidateKey,
       organization: org.trim(),
       plan,
       seats,
       expiryDate: formattedExpiry,
       status,
-      adminEmail: adminEmail.trim()
-    });
+      createdDate: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+      adminEmail: adminEmail.trim() || `admin@${org.toLowerCase().replace(/\s+/g, '')}.com`,
+      utilization: 0
+    };
 
+    onCreate(newLicense);
     onClose();
-    showToast(`Issued license ${created.key} for ${created.organization}!`, 'success');
   };
 
   return (
@@ -83,11 +90,9 @@ export const CreateLicenseDialog: React.FC<CreateLicenseDialogProps> = ({ open, 
       onClose={onClose} 
       maxWidth="sm" 
       fullWidth
-      PaperProps={{
-        sx: { borderRadius: '20px', overflow: 'hidden' }
-      }}
+      PaperProps={{ sx: { borderRadius: '18px', overflow: 'hidden' } }}
     >
-      {/* Dark Navy Header */}
+      {/* Dark Navy Dialog Header */}
       <div className="bg-slate-900 px-6 py-4 flex items-center justify-between text-white">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white">
@@ -131,7 +136,7 @@ export const CreateLicenseDialog: React.FC<CreateLicenseDialogProps> = ({ open, 
                 id="plan-select"
                 value={plan}
                 onChange={(e) => setPlan(e.target.value as LicensePlan)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="Standard">Standard</option>
                 <option value="Pro">Professional</option>
@@ -170,7 +175,7 @@ export const CreateLicenseDialog: React.FC<CreateLicenseDialogProps> = ({ open, 
                 required
                 value={expiry}
                 onChange={(e) => setExpiry(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -183,7 +188,7 @@ export const CreateLicenseDialog: React.FC<CreateLicenseDialogProps> = ({ open, 
                 id="status-select"
                 value={status}
                 onChange={(e) => setStatus(e.target.value as LicenseStatus)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="Active">Active</option>
                 <option value="Expiring">Expiring</option>
@@ -192,13 +197,16 @@ export const CreateLicenseDialog: React.FC<CreateLicenseDialogProps> = ({ open, 
             </div>
           </div>
 
-          {/* Generated Key Preview Box */}
+          {/* Key Preview Box */}
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Generated License Key</span>
               <button 
                 type="button" 
-                onClick={handleRegenerateKey}
+                onClick={() => {
+                  setCandidateKey(makeRandomKey());
+                  onShowToast('New key generated');
+                }}
                 className="text-xs text-blue-600 hover:text-blue-800 font-medium inline-flex items-center gap-1 cursor-pointer"
               >
                 <AutorenewIcon sx={{ fontSize: 13 }} />
@@ -209,7 +217,10 @@ export const CreateLicenseDialog: React.FC<CreateLicenseDialogProps> = ({ open, 
               <code className="text-sm font-mono font-bold text-slate-900">{candidateKey}</code>
               <button 
                 type="button" 
-                onClick={handleCopyKey}
+                onClick={() => {
+                  navigator.clipboard.writeText(candidateKey);
+                  onShowToast('License key copied!');
+                }}
                 className="text-xs text-slate-600 hover:text-slate-900 px-2 py-0.5 border border-slate-200 rounded bg-white inline-flex items-center gap-1 cursor-pointer"
               >
                 <ContentCopyIcon sx={{ fontSize: 12 }} />
@@ -218,7 +229,7 @@ export const CreateLicenseDialog: React.FC<CreateLicenseDialogProps> = ({ open, 
             </div>
           </div>
 
-          {/* Tenant Admin Email */}
+          {/* Tenant Contact */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" htmlFor="email-input">
               Tenant Admin Email (optional)
@@ -236,20 +247,13 @@ export const CreateLicenseDialog: React.FC<CreateLicenseDialogProps> = ({ open, 
         </DialogContent>
 
         <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid #f1f5f9' }}>
-          <Button onClick={onClose} sx={{ color: '#64748b', textTransform: 'none', fontWeight: 500 }}>
+          <Button onClick={onClose} sx={{ color: '#64748b', textTransform: 'none' }}>
             Cancel
           </Button>
           <Button 
             type="submit" 
             variant="contained" 
-            sx={{ 
-              bgcolor: '#2563eb', 
-              '&:hover': { bgcolor: '#1d4ed8' },
-              textTransform: 'none', 
-              fontWeight: 600,
-              borderRadius: '8px',
-              px: 3
-            }}
+            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 600, borderRadius: '8px', px: 3 }}
           >
             Issue License
           </Button>
